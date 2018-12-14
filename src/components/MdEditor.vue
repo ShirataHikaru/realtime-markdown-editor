@@ -1,11 +1,19 @@
 <template>
-  <div id="editor">
+  <div id="page">
     <vs-row>
-      <p>id: {{ myId }}</p>
+      <vs-col vs-w="5">
+        <p>id: {{ myId }}</p>
+      </vs-col>
+      <vs-col vs-w="5">
+        <vs-input v-model="requestedPeerId"/>
+      </vs-col>
+      <vs-col vs-w="2">
+        <vs-button color="primary" @click="connect">接続</vs-button>
+      </vs-col>
     </vs-row>
-    <vs-row>
+    <vs-row class="editor">
       <vs-col vs-type="flex" vs-justify="center" vs-w="6">
-        <textarea v-model="input" />
+        <textarea v-model="text" @input="update"/>
       </vs-col>
       <vs-col class="previewArea" vs-type="flex" vs-w="6">
         <div v-html="compiledMarkdown" ></div>
@@ -24,72 +32,76 @@ export default {
   name: 'md-editor',
   data() {
     return {
-      input: '',
+      text: '',
       peer: null,
-      connectedPeers: null,
+      connectedPeers: {},
+      dataConnection: null,
       myId: '',
-
+      requestedPeerId: ''
     }
   },
   mounted () {
+    const peer = new Peer({
     this.peer = new Peer({
       key: '',
       debug: 3,
     })
 
-    this.peer.on('open', () => {
-      this.id = peer.id
+    peer.on('open', () => {
+      console.log('peer opened!')
+      this.myId = this.peer.id
     })
 
-    this.peer.on('connection', c => {
-      c.on('open', () => this.connect(c));
-    });
+    peer.on('connection', c => {
+      console.log('peer connected!')
+      this.dataConnection = c
+      this.connectedPeers[this.dataConnection.remoteId] = 1
+      c.on('data', data => {
+        this.text = data
+      })
+    })
 
-    this.peer.on('error', err => console.log(err))
+    peer.on('close', () => {
+
+    })
+
+    peer.on('error', err => console.log(err))
+    this.peer = peer
   },
   computed: {
     compiledMarkdown: function () {
-      return marked(this.input, { sanitize: true })
+      return marked(this.text, { sanitize: true })
     }
   },
   methods: {
     update: _.debounce(function (e) {
-      this.input = e.target.value
-      const requestedPeer = $('#rid').val();
-      if (!this.connectedPeers[requestedPeer]) {
-        // Create 2 connections, one labelled chat and another labelled file.
-        const c = this.peer.connect(requestedPeer, {
-          label:    'chat',
-          metadata: {message: 'hi i want to chat with you!'},
-        });
-
-        c.on('open', () => {
-          this.connect(c);
-          this.connectedPeers[requestedPeer] = 1;
-        });
-
-        c.on('error', err => alert(err));
-
-        const f = this.peer.connect(requestedPeer, {label: 'file', reliable: true});
-
-        f.on('open', () => {
-          this.connect(f);
-        });
-
-        f.on('error', err => alert(err));
+      this.text = e.target.value
+      console.log('this.text', this.text)
+      if (this.connectedPeers[this.dataConnection.remoteId]) {
+        this.dataConnection.send(this.text)
       }
     }, 300),
 
-    connect: function (c) {
+    connect: function () {
+      const remoteId = this.requestedPeerId
+      if (!this.connectedPeers[remoteId]) {
+        this.dataConnection = this.peer.connect(remoteId)
+        this.dataConnection.on('data', data => {
+          this.text = data
+        })
 
-
+        this.connectedPeers[this.dataConnection.remoteId] = 1
+      }
     }
-
   }
 }
 </script>
 <style scoped>
-  #editor, .vs-row {
+  #page {
+    height: 100%;
+  }
+
+  .editor {
     height: 100%;
   }
 
