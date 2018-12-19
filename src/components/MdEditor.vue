@@ -5,7 +5,7 @@
         <p>id: {{ myId }}</p>
       </vs-col>
       <vs-col vs-w="5">
-        <vs-input v-model="requestedPeerId"/>
+        <vs-input v-model="remoteId"/>
       </vs-col>
       <vs-col vs-w="2">
         <vs-button color="primary" @click="connect">接続</vs-button>
@@ -33,39 +33,45 @@ export default {
   data() {
     return {
       text: '',
+      // SkyWayのpeer
       peer: null,
+      // 接続しているpeerを管理するオブジェクト
       connectedPeers: {},
       dataConnection: null,
       myId: '',
-      requestedPeerId: ''
+      // 接続相手のID
+      remoteId: ''
     }
   },
   mounted () {
+    // 初期化
     const peer = new Peer({
-    this.peer = new Peer({
       key: '',
       debug: 3,
     })
 
+    // シグナリングサーバーに正常に接続できた時
     peer.on('open', () => {
       console.log('peer opened!')
       this.myId = this.peer.id
     })
 
+    // p2pで接続相手と接続した時
     peer.on('connection', c => {
       console.log('peer connected!')
       this.dataConnection = c
       this.connectedPeers[this.dataConnection.remoteId] = 1
+      // データコネクションがデータを受信した時
       c.on('data', data => {
         this.text = data
       })
     })
 
-    peer.on('close', () => {
-
-    })
+    // Peerに対する全ての接続を終了した時
+    peer.on('close', () => console.log('peer close'))
 
     peer.on('error', err => console.log(err))
+    // peerがmounted内に取り残されてしまうので、dataに入れる
     this.peer = peer
   },
   computed: {
@@ -74,16 +80,18 @@ export default {
     }
   },
   methods: {
+    // テキストエリアに変更があった時に走るメソッド
     update: _.debounce(function (e) {
       this.text = e.target.value
-      console.log('this.text', this.text)
+      
       if (this.connectedPeers[this.dataConnection.remoteId]) {
         this.dataConnection.send(this.text)
       }
     }, 300),
 
+    // 接続ボタンが押された時に走るメソッド
     connect: function () {
-      const remoteId = this.requestedPeerId
+      const remoteId = this.remoteId
       if (!this.connectedPeers[remoteId]) {
         this.dataConnection = this.peer.connect(remoteId)
         this.dataConnection.on('data', data => {
