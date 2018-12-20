@@ -25,8 +25,8 @@
 
 <script>
 import marked from 'marked'
-import _ from 'lodash'
-import Peer from 'skyway-js';
+import debounce from 'lodash/debounce'
+import Peer from 'skyway-js'
 
 export default {
   name: 'md-editor',
@@ -53,7 +53,7 @@ export default {
     // シグナリングサーバーに正常に接続できた時
     peer.on('open', () => {
       console.log('peer opened!')
-      this.myId = this.peer.id
+      this.myId = peer.id
     })
 
     // p2pで接続相手と接続した時
@@ -87,7 +87,7 @@ export default {
       if (this.connectedPeers[this.dataConnection.remoteId]) {
         this.dataConnection.send(this.text)
       }
-    }, 300),
+    }, 50),
 
     // 接続ボタンが押された時に走るメソッド
     connect: function () {
