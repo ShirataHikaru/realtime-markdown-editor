@@ -81,7 +81,7 @@ export default {
   },
   methods: {
     // テキストエリアに変更があった時に走るメソッド
-    update: _.debounce(function (e) {
+    update: debounce(function (e) {
       this.text = e.target.value
       
       if (this.connectedPeers[this.dataConnection.remoteId]) {
